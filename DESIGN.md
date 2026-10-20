@@ -12,17 +12,18 @@
 
 One sentence that captures the feeling the tracker should leave you with.
 
-`<TODO>`
+`Professional and futuristic`
 
 Two or three references that capture the vibe (links to dribbble shots, screenshots of apps you admire, Pinterest boards — anything visual):
 
-- `<TODO>`
-- `<TODO>`
-- `<TODO>`
+- `https://dribbble.com/shots/25154496-Stick-Kanban-Design`
+- `https://dribbble.com/shots/26263392-Swift-Kanban-Board`
+- 
 
 Anti-references — what we are explicitly **not** trying to look like:
-
-- `<TODO>`
+- `https://dribbble.com/shots/21904451-Minimal-Kanban-Board`
+- `https://dribbble.com/shots/20973715-ToDo-App-Kanban-Board-Gantt-chart`
+- `https://dribbble.com/shots/24904805-Task-Kanban-Board`
 
 ## 2. Color palette
 
