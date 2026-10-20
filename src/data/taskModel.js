@@ -1,0 +1,310 @@
+/**
+ * VibeTracker — data model (M4 `data-model`).
+ *
+ * Mirrors PRD.md §5 exactly. The shape is LOCKED — do not add, rename or
+ * remove fields without team agreement. This module is pure data + pure
+ * functions: no React, no Tailwind classes. Presentation lives in
+ * `src/components/*`, so the model can be reused by M5 (modal), M10
+ * (copy-prompt serializer) and M11 (anchors) without dragging UI along.
+ */
+
+/**
+ * @typedef {'feature'|'bug'} TaskType
+ * @typedef {'todo'|'in-progress'|'review'|'done'} TaskStatus
+ * @typedef {'Claude'|'ChatGPT'|'Cursor'|'Lovable'|'Replit'|'Other'} ContextTool
+ */
+
+/**
+ * A single vibecoding task (PRD §5).
+ *
+ * @typedef {Object} Task
+ * @property {string}           id                uuid or timestamp string
+ * @property {string}           title
+ * @property {string}           description
+ * @property {TaskType}         type              visual color coding (M6)
+ * @property {TaskStatus}       status            which column the card lives in
+ * @property {string}           assignee          one of TEAM (PRD §8)
+ * @property {string|null}      dueDate           ISO 'YYYY-MM-DD'
+ * @property {string}           createdDate       ISO 'YYYY-MM-DD'
+ * @property {string}           context           M9 — curated briefing for the next AI / teammate
+ * @property {ContextTool|null} contextTool       M9
+ * @property {string|null}      contextUpdatedAt  M9 — ISO timestamp, set automatically on save
+ */
+
+/**
+ * One of four pinned deliverable slots (PRD §5, used by M11).
+ *
+ * @typedef {Object} Anchor
+ * @property {'presentation'|'demo'|'report'|'documentation'} id
+ * @property {string}      label
+ * @property {string|null} url
+ */
+
+// ─── Enumerations ────────────────────────────────────────────────────────────
+
+/**
+ * The four board columns, in render order, with the exact UI labels from
+ * PRD §7. Use these IDs everywhere — do not invent new ones.
+ */
+export const STAGES = Object.freeze([
+  { id: 'todo', label: 'To Do' },
+  { id: 'in-progress', label: 'In Progress' },
+  { id: 'review', label: 'Review' },
+  { id: 'done', label: 'Done' },
+]);
+
+/** @type {ReadonlyArray<TaskStatus>} */
+export const STATUS_IDS = Object.freeze(STAGES.map((s) => s.id));
+
+/** Task types with human labels (labels are what screen readers announce). */
+export const TASK_TYPES = Object.freeze([
+  { id: 'feature', label: 'Feature' },
+  { id: 'bug', label: 'Bug' },
+]);
+
+/** @type {ReadonlyArray<TaskType>} */
+export const TYPE_IDS = Object.freeze(TASK_TYPES.map((t) => t.id));
+
+/** Allowed values for `Task.contextTool` (M9). */
+export const CONTEXT_TOOLS = Object.freeze(['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other']);
+
+/**
+ * Team roster from PRD §8. `name` is what gets stored in `Task.assignee`;
+ * `handle` / `initials` are display helpers for M7 `task-owner`.
+ * Add teammates here — they automatically become valid assignees.
+ */
+export const TEAM_MEMBERS = Object.freeze([
+  { name: 'Daniil Osadcenco', handle: '@LegionerLeonid99', initials: 'DO' },
+]);
+
+/** The only valid values for `Task.assignee`. */
+export const TEAM = Object.freeze(TEAM_MEMBERS.map((m) => m.name));
+
+/** Default Anchor Board slots (M11). */
+export const DEFAULT_ANCHORS = Object.freeze([
+  { id: 'presentation', label: 'Presentation', url: null },
+  { id: 'demo', label: 'Demo', url: null },
+  { id: 'report', label: 'Report', url: null },
+  { id: 'documentation', label: 'Documentation', url: null },
+]);
+
+/** localStorage keys — namespaced so other localhost apps can't collide. */
+export const STORAGE_KEYS = Object.freeze({
+  tasks: 'vibetracker.tasks',
+  anchors: 'vibetracker.anchors',
+});
+
+// ─── Date helpers (local time, never UTC — avoids off-by-one at midnight) ───
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** @param {Date} date @returns {string} 'YYYY-MM-DD' in the user's local time zone */
+export function toISODate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** @returns {string} today as 'YYYY-MM-DD' */
+export function todayISO() {
+  return toISODate(new Date());
+}
+
+/** @param {number} days @returns {string} today ± n days as 'YYYY-MM-DD' */
+export function isoDaysFromToday(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return toISODate(d);
+}
+
+/**
+ * Parse 'YYYY-MM-DD' as a *local* date (new Date('2026-10-20') would be UTC).
+ * @param {string|null|undefined} iso
+ * @returns {Date|null}
+ */
+export function parseISODate(iso) {
+  if (typeof iso !== 'string' || !ISO_DATE_RE.test(iso)) return null;
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// ─── Factories & validation ─────────────────────────────────────────────────
+
+/** @returns {string} a collision-resistant id */
+export function createId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Short, human-friendly ticket code for display (e.g. "#3F9A").
+ * Derived from the id so it never needs to be stored separately.
+ * @param {string} id
+ */
+export function shortId(id) {
+  const clean = String(id).replace(/[^a-z0-9]/gi, '');
+  return `#${clean.slice(-4).toUpperCase()}`;
+}
+
+/**
+ * Build a fully-populated Task with safe defaults. M5's "+ New Task" modal
+ * should call this rather than hand-building objects.
+ *
+ * @param {Partial<Task>} [fields]
+ * @returns {Task}
+ */
+export function createTask(fields = {}) {
+  return normalizeTask({
+    id: createId(),
+    createdDate: todayISO(),
+    ...fields,
+  });
+}
+
+const str = (v, fallback = '') => (typeof v === 'string' ? v : fallback);
+const oneOf = (v, allowed, fallback) => (allowed.includes(v) ? v : fallback);
+
+/**
+ * Coerce anything (e.g. stale or hand-edited localStorage JSON) into a valid
+ * Task. Unknown fields are dropped; invalid enums fall back to defaults, so
+ * one corrupt record can never crash the board.
+ *
+ * @param {any} raw
+ * @returns {Task}
+ */
+export function normalizeTask(raw) {
+  const t = raw && typeof raw === 'object' ? raw : {};
+  const dueDate = parseISODate(t.dueDate) ? t.dueDate : null;
+  const createdDate = parseISODate(t.createdDate) ? t.createdDate : todayISO();
+
+  return {
+    id: str(t.id) || createId(),
+    title: str(t.title).trim() || 'Untitled task',
+    description: str(t.description),
+    type: oneOf(t.type, TYPE_IDS, 'feature'),
+    status: oneOf(t.status, STATUS_IDS, 'todo'),
+    assignee: oneOf(t.assignee, TEAM, TEAM[0]),
+    dueDate,
+    createdDate,
+    context: str(t.context),
+    contextTool: oneOf(t.contextTool, CONTEXT_TOOLS, null),
+    contextUpdatedAt: str(t.contextUpdatedAt) || null,
+  };
+}
+
+/** @param {any} list @returns {Task[]} */
+export function normalizeTasks(list) {
+  return Array.isArray(list) ? list.map(normalizeTask) : [];
+}
+
+// ─── Selectors ───────────────────────────────────────────────────────────────
+
+/**
+ * Board ordering inside a column: soonest due date first, undated tasks last,
+ * then oldest-created first so new work doesn't jump the queue.
+ * @param {Task} a @param {Task} b
+ */
+export function compareTasks(a, b) {
+  if (a.dueDate !== b.dueDate) {
+    if (a.dueDate === null) return 1;
+    if (b.dueDate === null) return -1;
+    return a.dueDate < b.dueDate ? -1 : 1;
+  }
+  return a.createdDate < b.createdDate ? -1 : a.createdDate > b.createdDate ? 1 : 0;
+}
+
+/**
+ * Bucket tasks into the four columns. Every stage key is always present,
+ * so the UI can render empty columns without null checks.
+ *
+ * @param {Task[]} tasks
+ * @returns {Record<TaskStatus, Task[]>}
+ */
+export function groupTasksByStatus(tasks) {
+  const groups = Object.fromEntries(STATUS_IDS.map((id) => [id, []]));
+  for (const task of tasks) groups[task.status].push(task);
+  for (const id of STATUS_IDS) groups[id].sort(compareTasks);
+  return groups;
+}
+
+/** @param {string} name @returns {typeof TEAM_MEMBERS[number] | undefined} */
+export function getTeamMember(name) {
+  return TEAM_MEMBERS.find((m) => m.name === name);
+}
+
+/** @param {TaskType} id */
+export function getTypeLabel(id) {
+  return TASK_TYPES.find((t) => t.id === id)?.label ?? id;
+}
+
+// ─── Seed data (first load only — afterwards localStorage wins) ─────────────
+
+/**
+ * 4 mock tasks so the board isn't empty on first load (README M4).
+ * Due dates are relative to *today* so the demo never goes stale.
+ * Review is intentionally empty to show the empty-column state.
+ *
+ * @type {Task[]}
+ */
+export const SEED_TASKS = [
+  {
+    id: 'seed-0104',
+    title: 'Build the add / edit task modal',
+    description:
+      'One modal for create and edit with every Task field, persisted to localStorage. Cyan primary action, backdrop-blur overlay.',
+    type: 'feature',
+    status: 'todo',
+    assignee: TEAM[0],
+    dueDate: isoDaysFromToday(3),
+    createdDate: isoDaysFromToday(-1),
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+  {
+    id: 'seed-0107',
+    title: 'Serialize task + context as an AI prompt',
+    description:
+      'Markdown formatter that turns a task and its curated context into a paste-ready briefing for Claude, ChatGPT or Cursor.',
+    type: 'feature',
+    status: 'todo',
+    assignee: TEAM[0],
+    dueDate: isoDaysFromToday(6),
+    createdDate: isoDaysFromToday(-1),
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+  {
+    id: 'seed-0105',
+    title: 'Board loses tasks after a hard refresh',
+    description:
+      'localStorage hydrates after first render on some browsers, briefly showing an empty board. Read storage in the lazy initializer.',
+    type: 'bug',
+    status: 'in-progress',
+    assignee: TEAM[0],
+    dueDate: isoDaysFromToday(1),
+    createdDate: isoDaysFromToday(-2),
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+  {
+    id: 'seed-0101',
+    title: 'Lock WCAG 2.2 palette into Tailwind tokens',
+    description:
+      'DESIGN.md colours, typography and component principles mirrored in tailwind.config.js. All text pairs verified at AA or better.',
+    type: 'feature',
+    status: 'done',
+    assignee: TEAM[0],
+    dueDate: isoDaysFromToday(-1),
+    createdDate: isoDaysFromToday(-3),
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+];

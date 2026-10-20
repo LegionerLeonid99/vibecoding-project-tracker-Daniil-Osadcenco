@@ -1,0 +1,68 @@
+import { Circle, CircleCheck, CircleDot, Eye, Inbox } from 'lucide-react';
+import TaskCard from './TaskCard.jsx';
+
+/**
+ * Per-stage accent (header icon + 2px underline), echoing the Stick
+ * reference's colour-coded column headers. Full class strings are listed so
+ * Tailwind's JIT can see them. Every column also has a text label + unique
+ * icon, so colour is never the only differentiator (WCAG 1.4.1).
+ */
+const STAGE_STYLE = {
+  todo: { Icon: Circle, icon: 'text-content-muted', bar: 'border-content-muted' },
+  'in-progress': { Icon: CircleDot, icon: 'text-brand-primary', bar: 'border-brand-primary' },
+  review: { Icon: Eye, icon: 'text-brand-accent', bar: 'border-brand-accent' },
+  done: { Icon: CircleCheck, icon: 'text-type-feature', bar: 'border-type-feature' },
+};
+
+/** DESIGN.md §4 empty state + §5 microcopy. */
+function EmptyColumn() {
+  return (
+    <div className="flex min-h-[9rem] flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-surface-border px-4 py-8 text-center">
+      <Inbox aria-hidden="true" className="h-5 w-5 text-content-muted" />
+      <p className="text-xs text-content-muted">No active tasks in this stage.</p>
+    </div>
+  );
+}
+
+/**
+ * @param {{
+ *   stage: { id: import('../data/taskModel.js').TaskStatus, label: string },
+ *   tasks: import('../data/taskModel.js').Task[],
+ * }} props
+ */
+export default function Column({ stage, tasks }) {
+  const style = STAGE_STYLE[stage.id];
+  const headingId = `column-${stage.id}-heading`;
+  const count = tasks.length;
+
+  return (
+    <section aria-labelledby={headingId} className="flex min-w-0 flex-col">
+      <header className={`flex items-center gap-2.5 border-b-2 px-1 pb-3 ${style.bar}`}>
+        <style.Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${style.icon}`} strokeWidth={2.25} />
+        <h3 id={headingId} className="font-heading text-base font-semibold uppercase tracking-wide text-content-primary">
+          {stage.label}
+          <span className="sr-only">, {count} {count === 1 ? 'task' : 'tasks'}</span>
+        </h3>
+        <span
+          aria-hidden="true"
+          className="ml-1 rounded-md border border-surface-border bg-surface-card px-2 py-0.5 font-mono text-xs font-medium text-content-primary"
+        >
+          {count}
+        </span>
+        {/* TODO M5 crud-modal: optional per-column "+" that pre-fills status = stage.id. */}
+      </header>
+
+      <div className="mt-3 flex flex-1 flex-col rounded-2xl border border-surface-border/60 bg-surface-card/40 p-2.5">
+        {count === 0 ? (
+          <EmptyColumn />
+        ) : (
+          <ul role="list" className="flex flex-col gap-2.5">
+            {tasks.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}

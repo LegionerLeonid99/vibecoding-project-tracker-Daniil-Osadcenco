@@ -33,7 +33,14 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        // DESIGN.md §3 — headings & wordmark
+        heading: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+        mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+      },
+      boxShadow: {
+        // DESIGN.md §4 — "subtle border glow on hover, zero heavy drop-shadows"
+        'glow-primary': '0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 20px -6px rgba(34, 211, 238, 0.45)',
+        'dot-primary': '0 0 10px 1px rgba(34, 211, 238, 0.85)',
       },
     },
   },

@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import AppHeader from './components/AppHeader.jsx';
+import Board from './components/Board.jsx';
+import { useLocalStorage } from './hooks/useLocalStorage.js';
+import { SEED_TASKS, STORAGE_KEYS, normalizeTasks } from './data/taskModel.js';
 
 /**
  * Vibecoding Project Tracker — starter scaffold.
@@ -19,98 +23,81 @@ import { useState, useEffect } from 'react';
  *   - M12 secret-sauce  : the one open-ended thing that makes your tracker yours.
  *
  * Search the file for `TODO M<n>` to find the right hook for each milestone.
- */
-
-/**
- * @typedef {Object} Task
- * @property {string} id
- * @property {string} title
- * @property {string} description
- * @property {'feature'|'bug'} type
- * @property {'todo'|'in-progress'|'review'|'done'} status
- * @property {string} assignee
- * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
- * @property {string} createdDate      ISO 'YYYY-MM-DD'
- */
-
-// The four columns of the board, in render order.
-// Use these IDs everywhere — do not invent new ones.
-export const STAGES = [
-  { id: 'todo',        label: 'To Do' },
-  { id: 'in-progress', label: 'In Progress' },
-  { id: 'review',      label: 'Review' },
-  { id: 'done',        label: 'Done' },
-];
-
-// Replace these placeholders with the three names from PRD §8 before M4.
-// They become the only valid values for `Task.assignee`.
-export const TEAM = ['Teammate A', 'Teammate B', 'Teammate C'];
-
-/**
- * A tiny localStorage hook — survives reloads, no library needed.
  *
- * Usage:
- *   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', []);
+ * M4 layout:
+ *   src/data/taskModel.js      — locked Task / Anchor model (PRD §5), STAGES, TEAM, seeds, selectors
+ *   src/hooks/useLocalStorage.js
+ *   src/components/AppHeader.jsx, Board.jsx, Column.jsx, TaskCard.jsx
  */
-export function useLocalStorage(key, initialValue) {
-  const [value, setValue] = useState(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      return raw != null ? JSON.parse(raw) : initialValue;
-    } catch {
-      return initialValue;
-    }
-  });
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* quota or private-mode error — silently ignore for hackathon */
-    }
-  }, [key, value]);
-
-  return [value, setValue];
-}
+// Re-exported so existing imports from './App.jsx' keep working.
+export { STAGES, TEAM } from './data/taskModel.js';
+export { useLocalStorage } from './hooks/useLocalStorage.js';
 
 export default function App() {
-  // TODO M4 data-model:
-  //   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', [/* 3-4 seed tasks */]);
-  //
+  // M4 data-model: persisted task list, seeded with 4 mock tasks on first load.
+  // setTasks is the single write path M5 (crud-modal) and M7 (handoff) will use.
+  // eslint-disable-next-line no-unused-vars
+  const [storedTasks, setTasks] = useLocalStorage(STORAGE_KEYS.tasks, SEED_TASKS);
+
+  // Never trust storage blindly — coerce every record into a valid Task.
+  const tasks = useMemo(() => normalizeTasks(storedTasks), [storedTasks]);
+
+  const stats = useMemo(() => {
+    const done = tasks.filter((t) => t.status === 'done').length;
+    return { total: tasks.length, open: tasks.length - done, done };
+  }, [tasks]);
+
   // TODO M5 crud-modal:
   //   const [editing, setEditing] = useState(null);
   //
   // TODO M11 anchors:
-  //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
+  //   const [anchors, setAnchors] = useLocalStorage(STORAGE_KEYS.anchors, DEFAULT_ANCHORS);
 
   return (
-    <div className="min-h-screen p-6">
-      <header className="mb-6 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Vibecoding Project Tracker
-          </h1>
-          <p className="text-sm text-slate-500">
-            {/* Replace this line with your team name from PRD §11. */}
-            Team starter
-          </p>
-        </div>
-      </header>
+    <div className="min-h-screen bg-surface-page">
+      {/* WCAG 2.4.1 Bypass Blocks */}
+      <a
+        href="#board"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand-primary focus:px-4 focus:py-2 focus:font-semibold focus:text-surface-page"
+      >
+        Skip to board
+      </a>
 
-      {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
+      <AppHeader />
 
-      {/*
-        TODO M4 data-model:
-          Render a Kanban board with the four columns from STAGES.
-          Each column should display the tasks whose status matches its id.
-          Pre-populate 3-4 mock tasks so the board isn't empty on first load.
+      <main className="mx-auto max-w-[90rem] px-8 py-8">
+        {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
 
-        TODO M5 crud-modal:
-          Add a "+" button that opens a modal with every Task field.
-          Clicking a card should open the same modal in edit mode.
-      */}
-      <main className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
-        Build the four-column board here · M4
+        <section aria-labelledby="board-heading">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-widest text-brand-primary">Command center</p>
+              <h2 id="board-heading" className="mt-1 font-heading text-2xl font-semibold tracking-tight text-content-primary">
+                Project board
+              </h2>
+              <p className="mt-1 text-sm text-content-muted">Project tracking for vibecoders.</p>
+            </div>
+
+            <dl className="flex items-center gap-2 font-mono text-xs">
+              {[
+                ['Total', stats.total],
+                ['Open', stats.open],
+                ['Done', stats.done],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 rounded-lg border border-surface-border bg-surface-card px-3 py-1.5"
+                >
+                  <dt className="uppercase tracking-wider text-content-muted">{label}</dt>
+                  <dd className="font-medium text-content-primary">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <Board tasks={tasks} />
+        </section>
       </main>
     </div>
   );
