@@ -1,10 +1,20 @@
 import { useMemo, useState } from 'react';
+import AnchorBoard from './components/AnchorBoard.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import Board from './components/Board.jsx';
 import TaskModal from './components/TaskModal.jsx';
 import Toast from './components/Toast.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
-import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } from './data/taskModel.js';
+import {
+  DEFAULT_ANCHORS,
+  SEED_TASKS,
+  STORAGE_KEYS,
+  createTask,
+  normalizeAnchors,
+  normalizeTask,
+  normalizeTasks,
+  serializeTaskToPrompt,
+} from './data/taskModel.js';
 
 /**
  * Vibecoding Project Tracker — starter scaffold.
@@ -12,14 +22,14 @@ import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } f
  * This file connects state, storage, and the board.
  *
  * Where to start (build sequence in Phase 3):
- *   - M4  data-model    : render the four columns and the task cards.
+ *   - M4  data-model    : render the four columns and the task cards. (DONE)
  *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal (DONE).
  *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors) (DONE).
  *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown (DONE).
  *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors) (DONE).
- *   - M9  context       : a curated Context briefing field on the modal.
- *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context.
- *   - M11 anchors       : the Anchor Board above the Kanban.
+ *   - M9  context       : a curated Context briefing field on the modal (DONE).
+ *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context (DONE).
+ *   - M11 anchors       : the Anchor Board above the Kanban (DONE).
  *   - M12 secret-sauce  : the one open-ended thing that makes your tracker yours.
  *
  * Search the file for `TODO M<n>` to find the right hook for each milestone.
@@ -103,8 +113,37 @@ export default function App() {
     setToastMessage(`Task handed off to ${newAssignee}.`);
   };
 
-  // TODO M11 anchors:
-  //   const [anchors, setAnchors] = useLocalStorage(STORAGE_KEYS.anchors, DEFAULT_ANCHORS);
+  // M10 `copy-context` / `copy-prompt`: Copy serialized markdown to clipboard
+  const handleCopyPrompt = async (task) => {
+    const promptText = serializeTaskToPrompt(task);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(promptText);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = promptText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      // DESIGN.md §5 exact microcopy: "Prompt context copied to clipboard. Ready for AI chat."
+      setToastMessage('Prompt context copied to clipboard. Ready for AI chat.');
+    } catch (err) {
+      console.error('Failed to copy prompt context to clipboard:', err);
+    }
+  };
+
+  // M11 `project-deliverables` / `anchors`: Deliverable Anchor Board
+  const [storedAnchors, setAnchors] = useLocalStorage(STORAGE_KEYS.anchors, DEFAULT_ANCHORS);
+  const anchors = useMemo(() => normalizeAnchors(storedAnchors), [storedAnchors]);
+
+  const handleSaveAnchorUrl = (anchorId, url) => {
+    setAnchors((prev) => {
+      const list = Array.isArray(prev) ? prev : DEFAULT_ANCHORS;
+      return list.map((a) => (a.id === anchorId ? { ...a, url } : a));
+    });
+  };
 
   return (
     <div className="min-h-screen bg-surface-page">
@@ -119,7 +158,8 @@ export default function App() {
       <AppHeader onNewTask={() => handleOpenCreate('todo')} />
 
       <main className="mx-auto max-w-[90rem] px-8 py-8">
-        {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
+        {/* M11 project-deliverables: Deliverable Anchor Board pinned above Kanban */}
+        <AnchorBoard anchors={anchors} onSaveUrl={handleSaveAnchorUrl} />
 
         <section aria-labelledby="board-heading">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -153,11 +193,12 @@ export default function App() {
             onEditTask={handleOpenEdit}
             onAddTask={(stageId) => handleOpenCreate(stageId)}
             onHandoffTask={handleHandoffTask}
+            onCopyPrompt={handleCopyPrompt}
           />
         </section>
       </main>
 
-      {/* M5 CRUD Modal */}
+      {/* M5 CRUD Modal + M9 Context + M10 Copy Prompt */}
       <TaskModal
         isOpen={modalConfig.isOpen}
         mode={modalConfig.mode}
@@ -166,9 +207,10 @@ export default function App() {
         onClose={handleCloseModal}
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
+        onCopyPrompt={handleCopyPrompt}
       />
 
-      {/* M7 Handoff Toast */}
+      {/* M7 Handoff & M10 Copy Toast */}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </div>
   );
