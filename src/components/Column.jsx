@@ -30,9 +30,10 @@ function EmptyColumn() {
  *   tasks: import('../data/taskModel.js').Task[],
  *   onEditTask?: (task: import('../data/taskModel.js').Task) => void,
  *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
+ *   onHandoffTask?: (taskId: string, newAssignee: string) => void,
  * }} props
  */
-export default function Column({ stage, tasks, onEditTask, onAddTask }) {
+export default function Column({ stage, tasks, onEditTask, onAddTask, onHandoffTask }) {
   const style = STAGE_STYLE[stage.id];
   const headingId = `column-${stage.id}-heading`;
   const count = tasks.length;
@@ -72,7 +73,12 @@ export default function Column({ stage, tasks, onEditTask, onAddTask }) {
         ) : (
           <ul role="list" className="flex flex-col gap-2.5">
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onEdit={onEditTask} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onEdit={onEditTask}
+                onHandoff={onHandoffTask}
+              />
             ))}
           </ul>
         )}

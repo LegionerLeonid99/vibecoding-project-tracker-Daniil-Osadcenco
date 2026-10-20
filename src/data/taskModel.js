@@ -75,6 +75,8 @@ export const CONTEXT_TOOLS = Object.freeze(['Claude', 'ChatGPT', 'Cursor', 'Lova
  */
 export const TEAM_MEMBERS = Object.freeze([
   { name: 'Daniil Osadcenco', handle: '@LegionerLeonid99', initials: 'DO' },
+  { name: 'Teammate B', handle: '@teammate_b', initials: 'TB' },
+  { name: 'Teammate C', handle: '@teammate_c', initials: 'TC' },
 ]);
 
 /** The only valid values for `Task.assignee`. */

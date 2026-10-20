@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import AppHeader from './components/AppHeader.jsx';
 import Board from './components/Board.jsx';
 import TaskModal from './components/TaskModal.jsx';
+import Toast from './components/Toast.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } from './data/taskModel.js';
 
@@ -14,7 +15,7 @@ import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } f
  *   - M4  data-model    : render the four columns and the task cards.
  *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal (DONE).
  *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors) (DONE).
- *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown.
+ *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown (DONE).
  *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors).
  *   - M9  context       : a curated Context briefing field on the modal.
  *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context.
@@ -84,8 +85,22 @@ export default function App() {
     }
   };
 
+  // Toast notification state (M7 `task-owner`)
+  const [toastMessage, setToastMessage] = useState(null);
+
   const handleDeleteTask = (taskId) => {
     setTasks((prev) => (Array.isArray(prev) ? prev : []).filter((t) => t.id !== taskId));
+  };
+
+  // Handoff Handler (M7 `task-owner`)
+  const handleHandoffTask = (taskId, newAssignee) => {
+    setTasks((prev) =>
+      (Array.isArray(prev) ? prev : []).map((t) =>
+        t.id === taskId ? normalizeTask({ ...t, assignee: newAssignee }) : t
+      )
+    );
+    // DESIGN.md §5 exact microcopy: "Task handed off to {name}."
+    setToastMessage(`Task handed off to ${newAssignee}.`);
   };
 
   // TODO M11 anchors:
@@ -137,6 +152,7 @@ export default function App() {
             tasks={tasks}
             onEditTask={handleOpenEdit}
             onAddTask={(stageId) => handleOpenCreate(stageId)}
+            onHandoffTask={handleHandoffTask}
           />
         </section>
       </main>
@@ -151,6 +167,9 @@ export default function App() {
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
       />
+
+      {/* M7 Handoff Toast */}
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </div>
   );
 }
