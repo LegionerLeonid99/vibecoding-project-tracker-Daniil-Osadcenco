@@ -3,6 +3,7 @@ import AnchorBoard from './components/AnchorBoard.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import Board from './components/Board.jsx';
 import ProfileModal from './components/ProfileModal.jsx';
+import DueFilterDropdown from './components/DueFilterDropdown.jsx';
 import TaskFilterBar from './components/TaskFilterBar.jsx';
 import TaskModal from './components/TaskModal.jsx';
 import TeamFolderModal from './components/TeamFolderModal.jsx';
@@ -14,6 +15,7 @@ import {
   SEED_TASKS,
   STORAGE_KEYS,
   createTask,
+  getDueState,
   normalizeAnchors,
   normalizeTask,
   normalizeTasks,
@@ -58,13 +60,24 @@ export default function App() {
   // Never trust storage blindly — coerce every record into a valid Task.
   const tasks = useMemo(() => normalizeTasks(storedTasks), [storedTasks]);
 
-  // Card type filter (All / Feature / Bug) — view-only: it changes what the
-  // board renders, never what is stored. Stats below stay global on purpose.
+  // Card filters (QoL) — view-only: they change what the board renders,
+  // never what is stored. Stats below stay global on purpose.
   const [typeFilter, setTypeFilter] = useState('all');
-  const visibleTasks = useMemo(
-    () => (typeFilter === 'all' ? tasks : tasks.filter((t) => t.type === typeFilter)),
-    [tasks, typeFilter]
-  );
+  const [dueFilter, setDueFilter] = useState('any');
+  const visibleTasks = useMemo(() => {
+    let list = tasks;
+    if (typeFilter !== 'all') list = list.filter((t) => t.type === typeFilter);
+    if (dueFilter !== 'any') {
+      list = list.filter((t) => {
+        const state = getDueState(t.dueDate, t.status).state;
+        // 'overdue' → past due; 'due' → upcoming deadline ('warning' + 'safe').
+        return dueFilter === 'overdue'
+          ? state === 'overdue'
+          : state === 'warning' || state === 'safe';
+      });
+    }
+    return list;
+  }, [tasks, typeFilter, dueFilter]);
 
   const stats = useMemo(() => {
     const done = tasks.filter((t) => t.status === 'done').length;
@@ -202,8 +215,9 @@ export default function App() {
                 Project board
               </h2>
               <p className="mt-1 text-sm text-content-muted">Project tracking for vibecoders.</p>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <TaskFilterBar value={typeFilter} onChange={setTypeFilter} />
+                <DueFilterDropdown value={dueFilter} onChange={setDueFilter} />
               </div>
             </div>
 
