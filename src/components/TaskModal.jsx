@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bug, Calendar, CalendarX, Sparkles, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Bot, Bug, Calendar, CalendarX, Copy, Sparkles, Trash2, X } from 'lucide-react';
 import {
+  CONTEXT_TOOLS,
   STAGES,
   TEAM,
   STATUS_IDS,
@@ -45,6 +46,7 @@ export default function TaskModal({
   onClose,
   onSave,
   onDelete,
+  onCopyPrompt,
 }) {
   const isEdit = mode === 'edit' && !!initialTask;
 
@@ -55,6 +57,8 @@ export default function TaskModal({
   const [status, setStatus] = useState('todo');
   const [assignee, setAssignee] = useState(TEAM[0]);
   const [dueDate, setDueDate] = useState('');
+  const [context, setContext] = useState('');
+  const [contextTool, setContextTool] = useState('Claude');
   const [titleError, setTitleError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -76,6 +80,8 @@ export default function TaskModal({
         setStatus(initialTask.status || 'todo');
         setAssignee(initialTask.assignee || TEAM[0]);
         setDueDate(initialTask.dueDate || '');
+        setContext(initialTask.context || '');
+        setContextTool(initialTask.contextTool || 'Claude');
       } else {
         setTitle('');
         setDescription('');
@@ -83,6 +89,8 @@ export default function TaskModal({
         setStatus(initialStatus || 'todo');
         setAssignee(TEAM[0]);
         setDueDate('');
+        setContext('');
+        setContextTool('Claude');
       }
 
       // Lock body scroll
@@ -154,6 +162,14 @@ export default function TaskModal({
       return;
     }
 
+    const trimmedContext = context.trim();
+    let contextUpdatedAt = initialTask?.contextUpdatedAt || null;
+    if (trimmedContext && (!initialTask || trimmedContext !== (initialTask.context || '').trim())) {
+      contextUpdatedAt = new Date().toISOString();
+    } else if (!trimmedContext) {
+      contextUpdatedAt = null;
+    }
+
     const payload = {
       title: trimmedTitle,
       description: description.trim(),
@@ -161,6 +177,9 @@ export default function TaskModal({
       status: STATUS_IDS.includes(status) ? status : 'todo',
       assignee: TEAM.includes(assignee) ? assignee : TEAM[0],
       dueDate: parseISODate(dueDate) ? dueDate : null,
+      context: trimmedContext,
+      contextTool: trimmedContext ? (CONTEXT_TOOLS.includes(contextTool) ? contextTool : 'Claude') : null,
+      contextUpdatedAt,
     };
 
     if (isEdit && initialTask) {
@@ -415,20 +434,115 @@ export default function TaskModal({
               </div>
             </div>
 
+            {/* Row 3: AI Prompt Context (M9 task-context) */}
+            <div className="rounded-xl border border-surface-border bg-surface-page/50 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Bot aria-hidden="true" className="h-4 w-4 text-brand-primary" />
+                  <label htmlFor="task-context" className="block text-xs font-mono font-medium text-content-primary">
+                    AI Prompt Context / Briefing
+                  </label>
+                </div>
+                {/* Target Tool Selector */}
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="task-context-tool" className="text-[11px] font-mono text-content-muted">
+                    Tool:
+                  </label>
+                  <select
+                    id="task-context-tool"
+                    name="contextTool"
+                    value={contextTool}
+                    onChange={(e) => setContextTool(e.target.value)}
+                    className="rounded-md border border-surface-border bg-surface-card px-2 py-1 text-xs font-mono text-brand-primary focus:border-brand-primary focus:outline-none"
+                  >
+                    {CONTEXT_TOOLS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <textarea
+                id="task-context"
+                name="context"
+                rows={3}
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder="Paste prompt history, technical instructions, constraints, or bug trace for Claude / ChatGPT / Cursor..."
+                className="w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 font-mono text-xs text-content-primary placeholder:text-content-muted/50 focus:border-brand-primary focus:outline-none transition-colors"
+              />
+
+              <div className="flex items-center justify-between text-[11px] font-mono text-content-muted">
+                <span>
+                  {initialTask?.contextUpdatedAt
+                    ? `Briefing updated: ${new Date(initialTask.contextUpdatedAt).toLocaleDateString()}`
+                    : 'Paste-ready briefing for pair programming'}
+                </span>
+                {onCopyPrompt && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCopyPrompt({
+                        id: initialTask?.id || 'draft',
+                        title: title.trim() || 'Untitled Task',
+                        description: description.trim(),
+                        type,
+                        status,
+                        assignee,
+                        dueDate: parseISODate(dueDate) ? dueDate : null,
+                        context: context.trim(),
+                        contextTool,
+                        contextUpdatedAt: initialTask?.contextUpdatedAt || null,
+                      })
+                    }
+                    className="inline-flex items-center gap-1 text-brand-primary hover:text-[#67e8f9] transition-colors"
+                  >
+                    <Copy aria-hidden="true" className="h-3 w-3" />
+                    <span>Copy Prompt</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Actions Footer */}
-            <div className="pt-4 border-t border-surface-border flex items-center justify-between gap-3">
-              {isEdit ? (
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-type-bug/30 px-3 py-2 text-xs font-medium text-type-bug hover:bg-type-bug/10 transition-colors"
-                >
-                  <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-                  <span>Delete Task</span>
-                </button>
-              ) : (
-                <div />
-              )}
+            <div className="pt-4 border-t border-surface-border flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {isEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-type-bug/30 px-3 py-2 text-xs font-medium text-type-bug hover:bg-type-bug/10 transition-colors"
+                  >
+                    <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+                    <span>Delete Task</span>
+                  </button>
+                )}
+                {onCopyPrompt && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCopyPrompt({
+                        id: initialTask?.id || 'draft',
+                        title: title.trim() || 'Untitled Task',
+                        description: description.trim(),
+                        type,
+                        status,
+                        assignee,
+                        dueDate: parseISODate(dueDate) ? dueDate : null,
+                        context: context.trim(),
+                        contextTool,
+                        contextUpdatedAt: initialTask?.contextUpdatedAt || null,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-xs font-mono font-medium text-brand-primary hover:bg-brand-primary/20 transition-colors"
+                  >
+                    <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+                    <span>Copy as Prompt Context</span>
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-3">
                 <button

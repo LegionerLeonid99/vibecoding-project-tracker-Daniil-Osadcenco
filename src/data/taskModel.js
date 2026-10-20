@@ -244,6 +244,81 @@ export function getTypeLabel(id) {
 }
 
 /**
+ * Normalizes an Anchor object (M11 `project-deliverables` / `anchors`).
+ * @param {any} a
+ * @returns {{ id: string, label: string, url: string | null }}
+ */
+export function normalizeAnchor(a) {
+  if (!a || typeof a !== 'object') {
+    return { id: 'presentation', label: 'Presentation', url: null };
+  }
+  const id = ['presentation', 'demo', 'report', 'documentation'].includes(a.id)
+    ? a.id
+    : 'presentation';
+  const defaultItem = DEFAULT_ANCHORS.find((d) => d.id === id);
+  const label = typeof a.label === 'string' && a.label.trim() ? a.label.trim() : (defaultItem?.label ?? id);
+  const url = typeof a.url === 'string' && a.url.trim() ? a.url.trim() : null;
+  return { id, label, url };
+}
+
+/**
+ * Normalizes the full list of anchors. Ensures all 4 default slots exist.
+ * @param {any} list
+ * @returns {Array<{ id: string, label: string, url: string | null }>}
+ */
+export function normalizeAnchors(list) {
+  const arr = Array.isArray(list) ? list : [];
+  return DEFAULT_ANCHORS.map((def) => {
+    const existing = arr.find((item) => item?.id === def.id);
+    return existing ? normalizeAnchor(existing) : { ...def };
+  });
+}
+
+/**
+ * Formats a task and its context into a clean, paste-ready Markdown prompt
+ * for AI tools (Claude, ChatGPT, Cursor, etc.) (M10 `copy-context` / `copy-prompt`).
+ *
+ * @param {Task} task
+ * @returns {string} Markdown briefing
+ */
+export function serializeTaskToPrompt(task) {
+  const typeLabel = getTypeLabel(task.type);
+  const stage = STAGES.find((s) => s.id === task.status)?.label ?? task.status;
+  const toolName = task.contextTool || 'AI Assistant';
+
+  const sections = [
+    `# [VibeTracker Briefing] ${task.title}`,
+    `- **Task ID:** #${shortId(task.id)}`,
+    `- **Type:** ${typeLabel}`,
+    `- **Stage:** ${stage}`,
+    `- **Assignee:** ${task.assignee}`,
+    `- **Deadline:** ${task.dueDate || 'No hard deadline'}`,
+    `- **Target AI:** ${toolName}`,
+    '',
+    `## Objective & Description`,
+    task.description || '_No description provided._',
+  ];
+
+  if (task.context && task.context.trim()) {
+    sections.push(
+      '',
+      `## Curated Prompt Context / Briefing`,
+      `> Context configured for **${toolName}**${task.contextUpdatedAt ? ` (last updated ${task.contextUpdatedAt.slice(0, 10)})` : ''}:`,
+      '',
+      task.context.trim()
+    );
+  }
+
+  sections.push(
+    '',
+    `---`,
+    `*Instructions for ${toolName}: Review the objective and context briefing above. Please propose the immediate next steps, code implementation, or debugging plan adhering to clean design tokens and WCAG 2.2 accessibility.*`
+  );
+
+  return sections.join('\n');
+}
+
+/**
  * @typedef {'overdue' | 'warning' | 'safe' | 'neutral' | 'none'} DueState
  */
 
@@ -323,9 +398,9 @@ export const SEED_TASKS = [
     assignee: TEAM[0],
     dueDate: isoDaysFromToday(3),
     createdDate: isoDaysFromToday(-1),
-    context: '',
-    contextTool: null,
-    contextUpdatedAt: null,
+    context: 'Use accessible dialog semantics: role="dialog", aria-modal="true", and trap focus inside. When user hits Escape, close modal and restore focus.',
+    contextTool: 'Cursor',
+    contextUpdatedAt: isoDaysFromToday(-1),
   },
   {
     id: 'seed-0102',
@@ -365,9 +440,9 @@ export const SEED_TASKS = [
     assignee: TEAM[0],
     dueDate: isoDaysFromToday(6),
     createdDate: isoDaysFromToday(-1),
-    context: '',
-    contextTool: null,
-    contextUpdatedAt: null,
+    context: 'Format task briefing into clean Markdown with frontmatter and section dividers. Ensure Claude, ChatGPT and Cursor handle copy-paste gracefully without stripping whitespace.',
+    contextTool: 'Claude',
+    contextUpdatedAt: isoDaysFromToday(0),
   },
   {
     id: 'seed-0101',
