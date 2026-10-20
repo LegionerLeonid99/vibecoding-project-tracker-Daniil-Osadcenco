@@ -113,4 +113,4 @@ To keep design tight, the following are explicitly not part of `design-done`:
 
 ---
 
-*DESIGN.md version: hackathon-starter v1 · updated for SOPRANO's crew*
+*DESIGN.md version: hackathon-starter v1 · updated for SOPRANO's crew v3*
