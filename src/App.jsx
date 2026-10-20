@@ -3,6 +3,7 @@ import AnchorBoard from './components/AnchorBoard.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import Board from './components/Board.jsx';
 import ProfileModal from './components/ProfileModal.jsx';
+import TaskFilterBar from './components/TaskFilterBar.jsx';
 import TaskModal from './components/TaskModal.jsx';
 import TeamFolderModal from './components/TeamFolderModal.jsx';
 import Toast from './components/Toast.jsx';
@@ -56,6 +57,14 @@ export default function App() {
 
   // Never trust storage blindly — coerce every record into a valid Task.
   const tasks = useMemo(() => normalizeTasks(storedTasks), [storedTasks]);
+
+  // Card type filter (All / Feature / Bug) — view-only: it changes what the
+  // board renders, never what is stored. Stats below stay global on purpose.
+  const [typeFilter, setTypeFilter] = useState('all');
+  const visibleTasks = useMemo(
+    () => (typeFilter === 'all' ? tasks : tasks.filter((t) => t.type === typeFilter)),
+    [tasks, typeFilter]
+  );
 
   const stats = useMemo(() => {
     const done = tasks.filter((t) => t.status === 'done').length;
@@ -193,6 +202,9 @@ export default function App() {
                 Project board
               </h2>
               <p className="mt-1 text-sm text-content-muted">Project tracking for vibecoders.</p>
+              <div className="mt-3">
+                <TaskFilterBar value={typeFilter} onChange={setTypeFilter} />
+              </div>
             </div>
 
             <dl className="flex items-center gap-2 font-mono text-xs">
@@ -213,7 +225,7 @@ export default function App() {
           </div>
 
           <Board
-            tasks={tasks}
+            tasks={visibleTasks}
             onEditTask={handleOpenEdit}
             onAddTask={(stageId) => handleOpenCreate(stageId)}
             onHandoffTask={handleHandoffTask}
