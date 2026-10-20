@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Bot,
   Bug,
   CalendarClock,
   CalendarOff,
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Copy,
   Sparkles,
 } from 'lucide-react';
 import {
@@ -230,9 +232,10 @@ function AssigneeBadge({ task, onHandoff }) {
  *   task: import('../data/taskModel.js').Task,
  *   onEdit?: (task: import('../data/taskModel.js').Task) => void,
  *   onHandoff?: (taskId: string, newAssignee: string) => void,
+ *   onCopyPrompt?: (task: import('../data/taskModel.js').Task) => void,
  * }} props
  */
-export default function TaskCard({ task, onEdit, onHandoff }) {
+export default function TaskCard({ task, onEdit, onHandoff, onCopyPrompt }) {
   const titleId = `task-${task.id}-title`;
   const dueInfo = getDueState(task.dueDate, task.status);
   const dueCfg = DUE_CONFIG[dueInfo.state] || DUE_CONFIG.none;
@@ -247,11 +250,38 @@ export default function TaskCard({ task, onEdit, onHandoff }) {
         className={`group relative block rounded-xl border bg-surface-card p-4 hover:shadow-glow-primary focus-within:border-brand-primary focus-within:shadow-glow-primary motion-safe:transition-[border-color,box-shadow] motion-safe:duration-200 cursor-pointer ${dueCfg.cardBorder}`}
       >
         <div className="flex items-center justify-between gap-3">
-          <TypeBadge type={task.type} />
-          <span className="font-mono text-xs text-content-muted">
-            <span className="sr-only">Task ID </span>
-            {shortId(task.id)}
-          </span>
+          <div className="flex items-center gap-2">
+            <TypeBadge type={task.type} />
+            {task.context && task.context.trim() && (
+              <span
+                title={`Prompt context configured for ${task.contextTool || 'AI'}`}
+                className="inline-flex items-center gap-1 rounded border border-brand-primary/30 bg-brand-primary/10 px-2 py-0.5 font-mono text-[11px] text-brand-primary"
+              >
+                <Bot aria-hidden="true" className="h-3 w-3" />
+                <span>{task.contextTool || 'Context'}</span>
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-content-muted">
+              <span className="sr-only">Task ID </span>
+              {shortId(task.id)}
+            </span>
+            {onCopyPrompt && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyPrompt(task);
+                }}
+                title="Copy as Prompt Context"
+                aria-label={`Copy prompt context for task: ${task.title}`}
+                className="rounded p-1 text-content-muted hover:text-brand-primary hover:bg-surface-page transition-colors focus-visible:outline-2 focus-visible:outline-brand-primary"
+              >
+                <Copy aria-hidden="true" className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <h4 id={titleId} className="mt-3">

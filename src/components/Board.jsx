@@ -14,9 +14,10 @@ import Column from './Column.jsx';
  *   onEditTask?: (task: import('../data/taskModel.js').Task) => void,
  *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
  *   onHandoffTask?: (taskId: string, newAssignee: string) => void,
+ *   onCopyPrompt?: (task: import('../data/taskModel.js').Task) => void,
  * }} props
  */
-export default function Board({ tasks, onEditTask, onAddTask, onHandoffTask }) {
+export default function Board({ tasks, onEditTask, onAddTask, onHandoffTask, onCopyPrompt }) {
   const groups = useMemo(() => groupTasksByStatus(tasks), [tasks]);
 
   return (
@@ -36,6 +37,7 @@ export default function Board({ tasks, onEditTask, onAddTask, onHandoffTask }) {
             onEditTask={onEditTask}
             onAddTask={onAddTask}
             onHandoffTask={onHandoffTask}
+            onCopyPrompt={onCopyPrompt}
           />
         ))}
       </div>

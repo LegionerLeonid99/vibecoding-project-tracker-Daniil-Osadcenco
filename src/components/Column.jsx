@@ -31,9 +31,10 @@ function EmptyColumn() {
  *   onEditTask?: (task: import('../data/taskModel.js').Task) => void,
  *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
  *   onHandoffTask?: (taskId: string, newAssignee: string) => void,
+ *   onCopyPrompt?: (task: import('../data/taskModel.js').Task) => void,
  * }} props
  */
-export default function Column({ stage, tasks, onEditTask, onAddTask, onHandoffTask }) {
+export default function Column({ stage, tasks, onEditTask, onAddTask, onHandoffTask, onCopyPrompt }) {
   const style = STAGE_STYLE[stage.id];
   const headingId = `column-${stage.id}-heading`;
   const count = tasks.length;
@@ -78,6 +79,7 @@ export default function Column({ stage, tasks, onEditTask, onAddTask, onHandoffT
                 task={task}
                 onEdit={onEditTask}
                 onHandoff={onHandoffTask}
+                onCopyPrompt={onCopyPrompt}
               />
             ))}
           </ul>
