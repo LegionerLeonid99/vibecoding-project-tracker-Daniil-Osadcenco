@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  AlertCircle,
   Bug,
   CalendarClock,
   CalendarOff,
   Check,
+  CheckCircle2,
   ChevronDown,
+  Clock,
   Sparkles,
 } from 'lucide-react';
 import {
   TEAM_MEMBERS,
+  getDueState,
   getTeamMember,
   getTypeLabel,
   parseISODate,
@@ -36,6 +40,47 @@ const TYPE_CONFIG = {
     Icon: Bug,
     badgeClass: 'border-type-bug/30 bg-type-bug/10 text-type-bug',
     iconClass: 'text-type-bug',
+  },
+};
+
+/**
+ * Due-date state configuration (M8 `due-tint`).
+ * DESIGN.md §2 AA/AAA-compliant tokens:
+ * - due-safe: #38BDF8 (Sky-400 for tasks due >2 days out)
+ * - due-warning: #FBBF24 (Amber-400 for tasks due <24 hours)
+ * - due-overdue: #F87171 (Red-400 critical tint for past due tasks)
+ * - due-neutral: #94A3B8 (Slate-400 for completed tasks)
+ */
+const DUE_CONFIG = {
+  overdue: {
+    cardBorder: 'border-due-overdue/70 shadow-[0_0_15px_rgba(248,113,113,0.15)]',
+    badgeClass: 'text-due-overdue font-bold',
+    dotClass: 'bg-due-overdue',
+    Icon: AlertCircle,
+  },
+  warning: {
+    cardBorder: 'border-due-warning/60 shadow-[0_0_15px_rgba(251,191,36,0.12)]',
+    badgeClass: 'text-due-warning font-medium',
+    dotClass: 'bg-due-warning animate-pulse',
+    Icon: Clock,
+  },
+  safe: {
+    cardBorder: 'border-surface-border hover:border-due-safe/60',
+    badgeClass: 'text-due-safe',
+    dotClass: 'bg-due-safe',
+    Icon: CalendarClock,
+  },
+  neutral: {
+    cardBorder: 'border-surface-border',
+    badgeClass: 'text-due-neutral',
+    dotClass: 'bg-due-neutral',
+    Icon: CheckCircle2,
+  },
+  none: {
+    cardBorder: 'border-surface-border',
+    badgeClass: 'text-content-muted',
+    dotClass: null,
+    Icon: CalendarOff,
   },
 };
 
@@ -175,14 +220,11 @@ function AssigneeBadge({ task, onHandoff }) {
 }
 
 /**
- * One task card — DESIGN.md §4: slate-900 surface, 1px slate-700 border,
- * subtle cyan border glow on hover, no heavy drop shadows.
- *
- * Anatomy follows the Stick reference: badge row → title + description →
- * divider → meta footer (owner · due date).
- *
- * Clicking the card opens the edit modal (M5 `crud-modal`).
- * Assignee badge has "Hand off to..." dropdown (M7 `task-owner`).
+ * One task card — DESIGN.md §4 & §2:
+ * - Slate-900 surface, border with subtle glow
+ * - Dynamic color tinting based on due date proximity (M8 `due-tint`)
+ * - Assignee badge with "Hand off to..." dropdown (M7 `task-owner`)
+ * - Feature / Bug tag styling (M6 `tag-style`)
  *
  * @param {{
  *   task: import('../data/taskModel.js').Task,
@@ -192,15 +234,17 @@ function AssigneeBadge({ task, onHandoff }) {
  */
 export default function TaskCard({ task, onEdit, onHandoff }) {
   const titleId = `task-${task.id}-title`;
-  const due = formatDate(task.dueDate);
+  const dueInfo = getDueState(task.dueDate, task.status);
+  const dueCfg = DUE_CONFIG[dueInfo.state] || DUE_CONFIG.none;
+  const DueIcon = dueCfg.Icon;
+  const formattedDueDate = formatDate(task.dueDate);
 
   return (
     <li>
-      {/* TODO M8 due-tint: tint border / due chip by due state (DESIGN.md §2 due-* tokens). */}
       <article
         aria-labelledby={titleId}
         onClick={() => onEdit?.(task)}
-        className="group relative block rounded-xl border border-surface-border bg-surface-card p-4 hover:border-brand-primary/60 hover:shadow-glow-primary focus-within:border-brand-primary focus-within:shadow-glow-primary motion-safe:transition-[border-color,box-shadow] motion-safe:duration-200 cursor-pointer"
+        className={`group relative block rounded-xl border bg-surface-card p-4 hover:shadow-glow-primary focus-within:border-brand-primary focus-within:shadow-glow-primary motion-safe:transition-[border-color,box-shadow] motion-safe:duration-200 cursor-pointer ${dueCfg.cardBorder}`}
       >
         <div className="flex items-center justify-between gap-3">
           <TypeBadge type={task.type} />
@@ -231,14 +275,17 @@ export default function TaskCard({ task, onEdit, onHandoff }) {
           {/* M7 task-owner: Assignee badge + "Hand off to..." dropdown */}
           <AssigneeBadge task={task} onHandoff={onHandoff} />
 
-          <div className="flex shrink-0 items-center gap-1.5 font-mono text-content-muted">
-            {due ? (
-              <CalendarClock aria-hidden="true" className="h-3.5 w-3.5" />
-            ) : (
-              <CalendarOff aria-hidden="true" className="h-3.5 w-3.5" />
+          {/* M8 due-tint: Due-date state with WCAG-compliant color & icon */}
+          <div
+            className={`flex shrink-0 items-center gap-1.5 font-mono text-xs ${dueCfg.badgeClass}`}
+            title={formattedDueDate ? `Due: ${formattedDueDate}` : 'No deadline set'}
+          >
+            {dueCfg.dotClass && (
+              <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dueCfg.dotClass}`} />
             )}
-            <span className="sr-only">Due date: </span>
-            <span>{due ? <time dateTime={task.dueDate}>{due}</time> : 'No date'}</span>
+            <DueIcon aria-hidden="true" className="h-3.5 w-3.5" />
+            <span className="sr-only">Deadline state: </span>
+            <span>{dueInfo.label}</span>
           </div>
         </div>
       </article>

@@ -243,12 +243,72 @@ export function getTypeLabel(id) {
   return TASK_TYPES.find((t) => t.id === id)?.label ?? id;
 }
 
+/**
+ * @typedef {'overdue' | 'warning' | 'safe' | 'neutral' | 'none'} DueState
+ */
+
+/**
+ * Computes the due state according to DESIGN.md §2 (M8 `due-tint`):
+ * - 'neutral' for completed tasks (status === 'done', DESIGN.md due-neutral #94A3B8)
+ * - 'overdue' for tasks past due date (DESIGN.md due-overdue #F87171)
+ * - 'warning' for tasks due within 24h / tomorrow (DESIGN.md due-warning #FBBF24)
+ * - 'safe' for tasks due > 2 days out (DESIGN.md due-safe #38BDF8)
+ * - 'none' for tasks without a due date
+ *
+ * @param {string|null} dueDate ISO 'YYYY-MM-DD'
+ * @param {TaskStatus} [status]
+ * @returns {{
+ *   state: DueState,
+ *   daysDiff: number|null,
+ *   label: string,
+ * }}
+ */
+export function getDueState(dueDate, status = 'todo') {
+  if (status === 'done') {
+    return { state: 'neutral', daysDiff: null, label: 'Completed' };
+  }
+  if (!dueDate) {
+    return { state: 'none', daysDiff: null, label: 'No date' };
+  }
+  const date = parseISODate(dueDate);
+  if (!date) {
+    return { state: 'none', daysDiff: null, label: 'No date' };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffMs = targetDate.getTime() - today.getTime();
+  const daysDiff = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (daysDiff < 0) {
+    const overdueDays = Math.abs(daysDiff);
+    return {
+      state: 'overdue',
+      daysDiff,
+      label: overdueDays === 1 ? '1d overdue' : `${overdueDays}d overdue`,
+    };
+  }
+  if (daysDiff <= 1) {
+    return {
+      state: 'warning',
+      daysDiff,
+      label: daysDiff === 0 ? 'Due today' : '< 24h Left',
+    };
+  }
+  return {
+    state: 'safe',
+    daysDiff,
+    label: `Due in ${daysDiff}d`,
+  };
+}
+
 // ─── Seed data (first load only — afterwards localStorage wins) ─────────────
 
 /**
- * 4 mock tasks so the board isn't empty on first load (README M4).
- * Due dates are relative to *today* so the demo never goes stale.
- * Review is intentionally empty to show the empty-column state.
+ * Mock tasks pre-populating all 4 due states (safe, warning, overdue, neutral)
+ * as defined in DESIGN.md §2.
  *
  * @type {Task[]}
  */
@@ -268,15 +328,15 @@ export const SEED_TASKS = [
     contextUpdatedAt: null,
   },
   {
-    id: 'seed-0107',
-    title: 'Serialize task + context as an AI prompt',
+    id: 'seed-0102',
+    title: 'Refactor Assignee Dropdown Component',
     description:
-      'Markdown formatter that turns a task and its curated context into a paste-ready briefing for Claude, ChatGPT or Cursor.',
-    type: 'feature',
+      'Reassignment toast does not trigger visual feedback after update. Fix state synchronization.',
+    type: 'bug',
     status: 'todo',
     assignee: TEAM[0],
-    dueDate: isoDaysFromToday(6),
-    createdDate: isoDaysFromToday(-1),
+    dueDate: isoDaysFromToday(-1),
+    createdDate: isoDaysFromToday(-3),
     context: '',
     contextTool: null,
     contextUpdatedAt: null,
@@ -296,6 +356,20 @@ export const SEED_TASKS = [
     contextUpdatedAt: null,
   },
   {
+    id: 'seed-0107',
+    title: 'Serialize task + context as an AI prompt',
+    description:
+      'Markdown formatter that turns a task and its curated context into a paste-ready briefing for Claude, ChatGPT or Cursor.',
+    type: 'feature',
+    status: 'todo',
+    assignee: TEAM[0],
+    dueDate: isoDaysFromToday(6),
+    createdDate: isoDaysFromToday(-1),
+    context: '',
+    contextTool: null,
+    contextUpdatedAt: null,
+  },
+  {
     id: 'seed-0101',
     title: 'Lock WCAG 2.2 palette into Tailwind tokens',
     description:
@@ -303,7 +377,7 @@ export const SEED_TASKS = [
     type: 'feature',
     status: 'done',
     assignee: TEAM[0],
-    dueDate: isoDaysFromToday(-1),
+    dueDate: isoDaysFromToday(-2),
     createdDate: isoDaysFromToday(-3),
     context: '',
     contextTool: null,

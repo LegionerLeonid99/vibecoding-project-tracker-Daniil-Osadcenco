@@ -16,7 +16,7 @@ import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } f
  *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal (DONE).
  *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors) (DONE).
  *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown (DONE).
- *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors).
+ *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors) (DONE).
  *   - M9  context       : a curated Context briefing field on the modal.
  *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context.
  *   - M11 anchors       : the Anchor Board above the Kanban.
