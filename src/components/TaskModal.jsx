@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bot, Bug, Calendar, CalendarX, Copy, Sparkles, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Bot, Bug, Calendar, CalendarX, Copy, Sparkles, Trash2, Wand2, X } from 'lucide-react';
 import {
   CONTEXT_TOOLS,
   STAGES,
   TEAM,
   STATUS_IDS,
   TYPE_IDS,
+  estimateTokenCount,
+  formatTACOPrompt,
   getTypeLabel,
   parseISODate,
   shortId,
@@ -435,46 +437,117 @@ export default function TaskModal({
             </div>
 
             {/* Row 3: AI Prompt Context (M9 task-context) */}
+            {/* Row 3: AI Prompt Context (M9 task-context + M12 TACO Enhancer & Token Meter) */}
             <div className="rounded-xl border border-surface-border bg-surface-page/50 p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <Bot aria-hidden="true" className="h-4 w-4 text-brand-primary" />
                   <label htmlFor="task-context" className="block text-xs font-mono font-medium text-content-primary">
                     AI Prompt Context / Briefing
                   </label>
                 </div>
-                {/* Target Tool Selector */}
-                <div className="flex items-center gap-1.5">
-                  <label htmlFor="task-context-tool" className="text-[11px] font-mono text-content-muted">
-                    Tool:
-                  </label>
-                  <select
-                    id="task-context-tool"
-                    name="contextTool"
-                    value={contextTool}
-                    onChange={(e) => setContextTool(e.target.value)}
-                    className="rounded-md border border-surface-border bg-surface-card px-2 py-1 text-xs font-mono text-brand-primary focus:border-brand-primary focus:outline-none"
+                <div className="flex items-center gap-2">
+                  {/* TACO Auto-Framer (M12 Secret Sauce) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const enhanced = formatTACOPrompt(title, description, context, contextTool);
+                      setContext(enhanced);
+                    }}
+                    title="Auto-format into Task-Actor-Context-Output structure"
+                    className="inline-flex items-center gap-1 rounded border border-brand-accent/40 bg-brand-accent/10 px-2 py-0.5 text-[11px] font-mono text-brand-accent hover:bg-brand-accent/20 transition-all hover:scale-105 active:scale-95"
                   >
-                    {CONTEXT_TOOLS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                    <Wand2 aria-hidden="true" className="h-3 w-3" />
+                    <span>Enhance (TACO)</span>
+                  </button>
+
+                  {/* Target Tool Selector */}
+                  <div className="flex items-center gap-1.5">
+                    <label htmlFor="task-context-tool" className="text-[11px] font-mono text-content-muted">
+                      Tool:
+                    </label>
+                    <select
+                      id="task-context-tool"
+                      name="contextTool"
+                      value={contextTool}
+                      onChange={(e) => setContextTool(e.target.value)}
+                      className="rounded-md border border-surface-border bg-surface-card px-2 py-0.5 text-xs font-mono text-brand-primary focus:border-brand-primary focus:outline-none"
+                    >
+                      {CONTEXT_TOOLS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
               <textarea
                 id="task-context"
                 name="context"
-                rows={3}
+                rows={4}
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
                 placeholder="Paste prompt history, technical instructions, constraints, or bug trace for Claude / ChatGPT / Cursor..."
                 className="w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 font-mono text-xs text-content-primary placeholder:text-content-muted/50 focus:border-brand-primary focus:outline-none transition-colors"
               />
 
-              <div className="flex items-center justify-between text-[11px] font-mono text-content-muted">
+              {/* Token Budget Meter (Option 3 / M12 Secret Sauce) */}
+              {(() => {
+                const tokens = estimateTokenCount(context);
+                const budget = 3000;
+                const percentage = Math.min(100, Math.round((tokens / budget) * 100));
+                const isCaution = tokens >= 1000 && tokens <= 3000;
+                const isDegraded = tokens > 3000;
+
+                return (
+                  <div className="space-y-1 pt-1 border-t border-surface-border/40">
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-content-muted">Context Budget:</span>
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <span
+                          className={
+                            isDegraded
+                              ? 'text-accent-red font-semibold'
+                              : isCaution
+                              ? 'text-accent-amber font-semibold'
+                              : 'text-type-feature'
+                          }
+                        >
+                          ~{tokens.toLocaleString()} tokens
+                        </span>
+                        <span className="text-content-muted">/ 3k target</span>
+                        <span
+                          className={`rounded px-1.5 py-0.2 text-[10px] ${
+                            isDegraded
+                              ? 'border border-accent-red/30 bg-accent-red/10 text-accent-red'
+                              : isCaution
+                              ? 'border border-accent-amber/30 bg-accent-amber/10 text-accent-amber'
+                              : 'border border-type-feature/30 bg-type-feature/10 text-type-feature'
+                          }`}
+                        >
+                          {isDegraded ? 'Risk: Degradation' : isCaution ? 'Caution' : 'Optimal'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-card">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isDegraded
+                            ? 'bg-accent-red'
+                            : isCaution
+                            ? 'bg-accent-amber'
+                            : 'bg-type-feature'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-between text-[11px] font-mono text-content-muted pt-1">
                 <span>
                   {initialTask?.contextUpdatedAt
                     ? `Briefing updated: ${new Date(initialTask.contextUpdatedAt).toLocaleDateString()}`

@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react';
 import AnchorBoard from './components/AnchorBoard.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import Board from './components/Board.jsx';
+import ProfileModal from './components/ProfileModal.jsx';
 import TaskModal from './components/TaskModal.jsx';
+import TeamFolderModal from './components/TeamFolderModal.jsx';
 import Toast from './components/Toast.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import {
   DEFAULT_ANCHORS,
+  DEFAULT_USER,
   SEED_TASKS,
   STORAGE_KEYS,
   createTask,
@@ -145,6 +148,22 @@ export default function App() {
     });
   };
 
+  // M12 `secret-sauce`: User registration profile & Team Folder
+  const [user, setUser] = useLocalStorage(STORAGE_KEYS.user, DEFAULT_USER);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isTeamFolderOpen, setIsTeamFolderOpen] = useState(false);
+
+  // M12 `secret-sauce`: Drag-and-drop task movement
+  const handleMoveTask = (taskId, targetStatus) => {
+    setTasks((prev) =>
+      (Array.isArray(prev) ? prev : []).map((t) =>
+        t.id === taskId ? normalizeTask({ ...t, status: targetStatus }) : t
+      )
+    );
+    const targetStage = STAGES.find((s) => s.id === targetStatus)?.label || targetStatus;
+    setToastMessage(`Task moved to ${targetStage}.`);
+  };
+
   return (
     <div className="min-h-screen bg-surface-page">
       {/* WCAG 2.4.1 Bypass Blocks */}
@@ -155,7 +174,12 @@ export default function App() {
         Skip to board
       </a>
 
-      <AppHeader onNewTask={() => handleOpenCreate('todo')} />
+      <AppHeader
+        onNewTask={() => handleOpenCreate('todo')}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenTeamFolder={() => setIsTeamFolderOpen(true)}
+        currentUser={user}
+      />
 
       <main className="mx-auto max-w-[90rem] px-8 py-8">
         {/* M11 project-deliverables: Deliverable Anchor Board pinned above Kanban */}
@@ -194,11 +218,12 @@ export default function App() {
             onAddTask={(stageId) => handleOpenCreate(stageId)}
             onHandoffTask={handleHandoffTask}
             onCopyPrompt={handleCopyPrompt}
+            onMoveTask={handleMoveTask}
           />
         </section>
       </main>
 
-      {/* M5 CRUD Modal + M9 Context + M10 Copy Prompt */}
+      {/* M5 CRUD Modal + M9 Context + M10 Copy Prompt + M12 TACO */}
       <TaskModal
         isOpen={modalConfig.isOpen}
         mode={modalConfig.mode}
@@ -208,6 +233,24 @@ export default function App() {
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
         onCopyPrompt={handleCopyPrompt}
+      />
+
+      {/* M12 Secret Sauce: Profile & Team Folder Modals */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        currentUser={user}
+        onClose={() => setIsProfileOpen(false)}
+        onSave={(updatedUser) => {
+          setUser(updatedUser);
+          setToastMessage(`Profile saved. Welcome, ${updatedUser.name}!`);
+        }}
+      />
+
+      <TeamFolderModal
+        isOpen={isTeamFolderOpen}
+        tasks={tasks}
+        anchors={anchors}
+        onClose={() => setIsTeamFolderOpen(false)}
       />
 
       {/* M7 Handoff & M10 Copy Toast */}

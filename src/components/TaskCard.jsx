@@ -236,6 +236,7 @@ function AssigneeBadge({ task, onHandoff }) {
  * }} props
  */
 export default function TaskCard({ task, onEdit, onHandoff, onCopyPrompt }) {
+  const [isDragging, setIsDragging] = useState(false);
   const titleId = `task-${task.id}-title`;
   const dueInfo = getDueState(task.dueDate, task.status);
   const dueCfg = DUE_CONFIG[dueInfo.state] || DUE_CONFIG.none;
@@ -246,8 +247,17 @@ export default function TaskCard({ task, onEdit, onHandoff, onCopyPrompt }) {
     <li>
       <article
         aria-labelledby={titleId}
+        draggable={true}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', task.id);
+          e.dataTransfer.effectAllowed = 'move';
+          setIsDragging(true);
+        }}
+        onDragEnd={() => setIsDragging(false)}
         onClick={() => onEdit?.(task)}
-        className={`group relative block rounded-xl border bg-surface-card p-4 hover:shadow-glow-primary focus-within:border-brand-primary focus-within:shadow-glow-primary motion-safe:transition-[border-color,box-shadow] motion-safe:duration-200 cursor-pointer ${dueCfg.cardBorder}`}
+        className={`group relative block rounded-xl border bg-surface-card p-4 hover:shadow-glow-primary focus-within:border-brand-primary focus-within:shadow-glow-primary motion-safe:transition-all motion-safe:duration-200 cursor-grab active:cursor-grabbing hover:-translate-y-0.5 active:scale-[0.98] ${dueCfg.cardBorder} ${
+          isDragging ? 'opacity-40 scale-95 border-brand-primary ring-2 ring-brand-primary/40' : ''
+        }`}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">

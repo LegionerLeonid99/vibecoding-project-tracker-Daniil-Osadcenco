@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Circle, CircleCheck, CircleDot, Eye, Inbox, Plus } from 'lucide-react';
 import TaskCard from './TaskCard.jsx';
 
@@ -32,9 +33,19 @@ function EmptyColumn() {
  *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
  *   onHandoffTask?: (taskId: string, newAssignee: string) => void,
  *   onCopyPrompt?: (task: import('../data/taskModel.js').Task) => void,
+ *   onMoveTask?: (taskId: string, targetStatus: import('../data/taskModel.js').TaskStatus) => void,
  * }} props
  */
-export default function Column({ stage, tasks, onEditTask, onAddTask, onHandoffTask, onCopyPrompt }) {
+export default function Column({
+  stage,
+  tasks,
+  onEditTask,
+  onAddTask,
+  onHandoffTask,
+  onCopyPrompt,
+  onMoveTask,
+}) {
+  const [isDragOver, setIsDragOver] = useState(false);
   const style = STAGE_STYLE[stage.id];
   const headingId = `column-${stage.id}-heading`;
   const count = tasks.length;
@@ -68,7 +79,36 @@ export default function Column({ stage, tasks, onEditTask, onAddTask, onHandoffT
         )}
       </header>
 
-      <div className="mt-3 flex flex-1 flex-col rounded-2xl border border-surface-border/60 bg-surface-card/40 p-2.5">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (!isDragOver) setIsDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            setIsDragOver(false);
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          const taskId = e.dataTransfer.getData('text/plain');
+          if (taskId) {
+            onMoveTask?.(taskId, stage.id);
+          }
+        }}
+        className={`mt-3 flex flex-1 flex-col rounded-2xl border p-2.5 motion-safe:transition-all motion-safe:duration-200 ${
+          isDragOver
+            ? 'border-brand-primary/80 bg-brand-primary/10 ring-2 ring-brand-primary/30 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
+            : 'border-surface-border/60 bg-surface-card/40'
+        }`}
+      >
+        {isDragOver && (
+          <div className="mb-2 rounded-lg border border-dashed border-brand-primary/60 bg-brand-primary/10 p-2 text-center text-xs font-mono text-brand-primary animate-pulse">
+            Drop task to move to {stage.label}
+          </div>
+        )}
         {count === 0 ? (
           <EmptyColumn />
         ) : (

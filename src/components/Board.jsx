@@ -15,9 +15,17 @@ import Column from './Column.jsx';
  *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
  *   onHandoffTask?: (taskId: string, newAssignee: string) => void,
  *   onCopyPrompt?: (task: import('../data/taskModel.js').Task) => void,
+ *   onMoveTask?: (taskId: string, targetStatus: import('../data/taskModel.js').TaskStatus) => void,
  * }} props
  */
-export default function Board({ tasks, onEditTask, onAddTask, onHandoffTask, onCopyPrompt }) {
+export default function Board({
+  tasks,
+  onEditTask,
+  onAddTask,
+  onHandoffTask,
+  onCopyPrompt,
+  onMoveTask,
+}) {
   const groups = useMemo(() => groupTasksByStatus(tasks), [tasks]);
 
   return (
@@ -38,6 +46,7 @@ export default function Board({ tasks, onEditTask, onAddTask, onHandoffTask, onC
             onAddTask={onAddTask}
             onHandoffTask={onHandoffTask}
             onCopyPrompt={onCopyPrompt}
+            onMoveTask={onMoveTask}
           />
         ))}
       </div>

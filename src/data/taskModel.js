@@ -90,10 +90,19 @@ export const DEFAULT_ANCHORS = Object.freeze([
   { id: 'documentation', label: 'Documentation', url: null },
 ]);
 
+/** Default registered user profile (M12 `secret-sauce`). */
+export const DEFAULT_USER = Object.freeze({
+  name: 'Daniil Osadcenco',
+  email: 'daniil@vibecoding.dev',
+  githubTag: '@LegionerLeonid99',
+  initials: 'DO',
+});
+
 /** localStorage keys — namespaced so other localhost apps can't collide. */
 export const STORAGE_KEYS = Object.freeze({
   tasks: 'vibetracker.tasks',
   anchors: 'vibetracker.anchors',
+  user: 'vibetracker.user',
 });
 
 // ─── Date helpers (local time, never UTC — avoids off-by-one at midnight) ───
@@ -316,6 +325,41 @@ export function serializeTaskToPrompt(task) {
   );
 
   return sections.join('\n');
+}
+
+/**
+ * Enhances prompt notes using the lecture's TACO framework:
+ * Task, Actor, Context, Output format (M12 `secret-sauce`).
+ *
+ * @param {string} title
+ * @param {string} description
+ * @param {string} rawContext
+ * @param {string} [toolName]
+ * @returns {string}
+ */
+export function formatTACOPrompt(title, description, rawContext, toolName = 'Claude') {
+  const taskSummary = title?.trim() || 'Implement project requirement';
+  const contextBody =
+    rawContext?.trim() || description?.trim() || 'Active sprint task requiring implementation.';
+
+  return [
+    `### [TACO Prompt Frame for ${toolName}]`,
+    `- **Task:** ${taskSummary}`,
+    `- **Actor:** Principal Full-Stack Engineer and AI Pair Programmer with deep expertise in React, Tailwind CSS, and WCAG 2.2 accessibility.`,
+    `- **Context:**`,
+    `  ${contextBody.replace(/\n/g, '\n  ')}`,
+    `- **Output Format:** Provide clean, production-ready code with diff explanations, TypeScript/JSDoc types, and confirm keyboard accessibility.`,
+  ].join('\n');
+}
+
+/**
+ * Estimates token count for a text string (~4 characters per token).
+ * @param {string} text
+ * @returns {number}
+ */
+export function estimateTokenCount(text) {
+  if (!text || typeof text !== 'string') return 0;
+  return Math.ceil(text.length / 4);
 }
 
 /**
