@@ -9,9 +9,13 @@ import Column from './Column.jsx';
  * scroll container is focusable and labelled so keyboard users can scroll it
  * too (WCAG 2.1.1).
  *
- * @param {{ tasks: import('../data/taskModel.js').Task[] }} props
+ * @param {{
+ *   tasks: import('../data/taskModel.js').Task[],
+ *   onEditTask?: (task: import('../data/taskModel.js').Task) => void,
+ *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
+ * }} props
  */
-export default function Board({ tasks }) {
+export default function Board({ tasks, onEditTask, onAddTask }) {
   const groups = useMemo(() => groupTasksByStatus(tasks), [tasks]);
 
   return (
@@ -20,11 +24,17 @@ export default function Board({ tasks }) {
       role="region"
       aria-label="Kanban board columns"
       tabIndex={0}
-      className="-mx-2 overflow-x-auto rounded-2xl px-2 pb-4"
+      className="-mx-2 overflow-x-auto rounded-2xl px-2 pb-4 focus-visible:outline-2 focus-visible:outline-brand-primary"
     >
       <div className="grid min-w-[64rem] grid-cols-4 gap-5">
         {STAGES.map((stage) => (
-          <Column key={stage.id} stage={stage} tasks={groups[stage.id]} />
+          <Column
+            key={stage.id}
+            stage={stage}
+            tasks={groups[stage.id]}
+            onEditTask={onEditTask}
+            onAddTask={onAddTask}
+          />
         ))}
       </div>
     </div>

@@ -1,19 +1,18 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import AppHeader from './components/AppHeader.jsx';
 import Board from './components/Board.jsx';
+import TaskModal from './components/TaskModal.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
-import { SEED_TASKS, STORAGE_KEYS, normalizeTasks } from './data/taskModel.js';
+import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } from './data/taskModel.js';
 
 /**
  * Vibecoding Project Tracker — starter scaffold.
  *
- * This file is intentionally almost empty. The boilerplate (Vite, React,
- * Tailwind) is configured for you, plus a few shared constants and a
- * localStorage helper. Everything visible on screen, you build.
+ * This file connects state, storage, and the board.
  *
  * Where to start (build sequence in Phase 3):
- *   - M4  data-model    : render the four columns and the task cards below.
- *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal.
+ *   - M4  data-model    : render the four columns and the task cards.
+ *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal (DONE).
  *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors).
  *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown.
  *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors).
@@ -23,11 +22,6 @@ import { SEED_TASKS, STORAGE_KEYS, normalizeTasks } from './data/taskModel.js';
  *   - M12 secret-sauce  : the one open-ended thing that makes your tracker yours.
  *
  * Search the file for `TODO M<n>` to find the right hook for each milestone.
- *
- * M4 layout:
- *   src/data/taskModel.js      — locked Task / Anchor model (PRD §5), STAGES, TEAM, seeds, selectors
- *   src/hooks/useLocalStorage.js
- *   src/components/AppHeader.jsx, Board.jsx, Column.jsx, TaskCard.jsx
  */
 
 // Re-exported so existing imports from './App.jsx' keep working.
@@ -35,10 +29,16 @@ export { STAGES, TEAM } from './data/taskModel.js';
 export { useLocalStorage } from './hooks/useLocalStorage.js';
 
 export default function App() {
-  // M4 data-model: persisted task list, seeded with 4 mock tasks on first load.
-  // setTasks is the single write path M5 (crud-modal) and M7 (handoff) will use.
-  // eslint-disable-next-line no-unused-vars
+  // Persisted task list, seeded with mock tasks on first load.
   const [storedTasks, setTasks] = useLocalStorage(STORAGE_KEYS.tasks, SEED_TASKS);
+
+  // Modal state for M5 crud-modal
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    mode: 'create', // 'create' | 'edit'
+    task: null,
+    initialStatus: 'todo',
+  });
 
   // Never trust storage blindly — coerce every record into a valid Task.
   const tasks = useMemo(() => normalizeTasks(storedTasks), [storedTasks]);
@@ -48,9 +48,46 @@ export default function App() {
     return { total: tasks.length, open: tasks.length - done, done };
   }, [tasks]);
 
-  // TODO M5 crud-modal:
-  //   const [editing, setEditing] = useState(null);
-  //
+  // CRUD Handlers (M5 `crud-modal`)
+  const handleOpenCreate = (initialStatus = 'todo') => {
+    setModalConfig({
+      isOpen: true,
+      mode: 'create',
+      task: null,
+      initialStatus,
+    });
+  };
+
+  const handleOpenEdit = (task) => {
+    setModalConfig({
+      isOpen: true,
+      mode: 'edit',
+      task,
+      initialStatus: task.status,
+    });
+  };
+
+  const handleCloseModal = () => {
+    setModalConfig((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSaveTask = (taskData) => {
+    if (modalConfig.mode === 'create') {
+      const newTask = createTask(taskData);
+      setTasks((prev) => [newTask, ...(Array.isArray(prev) ? prev : [])]);
+    } else if (modalConfig.mode === 'edit' && modalConfig.task) {
+      setTasks((prev) =>
+        (Array.isArray(prev) ? prev : []).map((t) =>
+          t.id === modalConfig.task.id ? normalizeTask({ ...t, ...taskData }) : t
+        )
+      );
+    }
+  };
+
+  const handleDeleteTask = (taskId) => {
+    setTasks((prev) => (Array.isArray(prev) ? prev : []).filter((t) => t.id !== taskId));
+  };
+
   // TODO M11 anchors:
   //   const [anchors, setAnchors] = useLocalStorage(STORAGE_KEYS.anchors, DEFAULT_ANCHORS);
 
@@ -64,7 +101,7 @@ export default function App() {
         Skip to board
       </a>
 
-      <AppHeader />
+      <AppHeader onNewTask={() => handleOpenCreate('todo')} />
 
       <main className="mx-auto max-w-[90rem] px-8 py-8">
         {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
@@ -96,9 +133,24 @@ export default function App() {
             </dl>
           </div>
 
-          <Board tasks={tasks} />
+          <Board
+            tasks={tasks}
+            onEditTask={handleOpenEdit}
+            onAddTask={(stageId) => handleOpenCreate(stageId)}
+          />
         </section>
       </main>
+
+      {/* M5 CRUD Modal */}
+      <TaskModal
+        isOpen={modalConfig.isOpen}
+        mode={modalConfig.mode}
+        initialTask={modalConfig.task}
+        initialStatus={modalConfig.initialStatus}
+        onClose={handleCloseModal}
+        onSave={handleSaveTask}
+        onDelete={handleDeleteTask}
+      />
     </div>
   );
 }

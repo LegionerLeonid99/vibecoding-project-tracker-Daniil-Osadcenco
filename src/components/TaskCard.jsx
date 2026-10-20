@@ -38,19 +38,25 @@ function TypeBadge({ type }) {
  * Anatomy follows the Stick reference: badge row → title + description →
  * divider → meta footer (owner · due date).
  *
- * @param {{ task: import('../data/taskModel.js').Task }} props
+ * Clicking the card opens the edit modal (M5 `crud-modal`).
+ *
+ * @param {{
+ *   task: import('../data/taskModel.js').Task,
+ *   onEdit?: (task: import('../data/taskModel.js').Task) => void,
+ * }} props
  */
-export default function TaskCard({ task }) {
+export default function TaskCard({ task, onEdit }) {
   const titleId = `task-${task.id}-title`;
   const due = formatDate(task.dueDate);
 
   return (
     <li>
-      {/* TODO M5 crud-modal: make the card a button that opens the edit modal. */}
       {/* TODO M8 due-tint: tint border / due chip by due state (DESIGN.md §2 due-* tokens). */}
-      <article
-        aria-labelledby={titleId}
-        className="group rounded-xl border border-surface-border bg-surface-card p-4 hover:border-brand-primary/60 hover:shadow-glow-primary motion-safe:transition-[border-color,box-shadow] motion-safe:duration-200"
+      <button
+        type="button"
+        onClick={() => onEdit?.(task)}
+        aria-haspopup="dialog"
+        className="w-full text-left group block rounded-xl border border-surface-border bg-surface-card p-4 hover:border-brand-primary/60 hover:shadow-glow-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary motion-safe:transition-[border-color,box-shadow] motion-safe:duration-200 cursor-pointer"
       >
         <div className="flex items-center justify-between gap-3">
           <TypeBadge type={task.type} />
@@ -60,7 +66,7 @@ export default function TaskCard({ task }) {
           </span>
         </div>
 
-        <h4 id={titleId} className="mt-3 font-heading text-sm font-semibold leading-snug text-content-primary">
+        <h4 id={titleId} className="mt-3 font-heading text-sm font-semibold leading-snug text-content-primary group-hover:text-brand-primary transition-colors">
           {task.title}
         </h4>
 
@@ -90,7 +96,7 @@ export default function TaskCard({ task }) {
             <dd>{due ? <time dateTime={task.dueDate}>{due}</time> : 'No date'}</dd>
           </div>
         </dl>
-      </article>
+      </button>
     </li>
   );
 }

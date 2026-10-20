@@ -1,4 +1,4 @@
-import { Circle, CircleCheck, CircleDot, Eye, Inbox } from 'lucide-react';
+import { Circle, CircleCheck, CircleDot, Eye, Inbox, Plus } from 'lucide-react';
 import TaskCard from './TaskCard.jsx';
 
 /**
@@ -28,28 +28,42 @@ function EmptyColumn() {
  * @param {{
  *   stage: { id: import('../data/taskModel.js').TaskStatus, label: string },
  *   tasks: import('../data/taskModel.js').Task[],
+ *   onEditTask?: (task: import('../data/taskModel.js').Task) => void,
+ *   onAddTask?: (stageId: import('../data/taskModel.js').TaskStatus) => void,
  * }} props
  */
-export default function Column({ stage, tasks }) {
+export default function Column({ stage, tasks, onEditTask, onAddTask }) {
   const style = STAGE_STYLE[stage.id];
   const headingId = `column-${stage.id}-heading`;
   const count = tasks.length;
 
   return (
     <section aria-labelledby={headingId} className="flex min-w-0 flex-col">
-      <header className={`flex items-center gap-2.5 border-b-2 px-1 pb-3 ${style.bar}`}>
-        <style.Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${style.icon}`} strokeWidth={2.25} />
-        <h3 id={headingId} className="font-heading text-base font-semibold uppercase tracking-wide text-content-primary">
-          {stage.label}
-          <span className="sr-only">, {count} {count === 1 ? 'task' : 'tasks'}</span>
-        </h3>
-        <span
-          aria-hidden="true"
-          className="ml-1 rounded-md border border-surface-border bg-surface-card px-2 py-0.5 font-mono text-xs font-medium text-content-primary"
-        >
-          {count}
-        </span>
-        {/* TODO M5 crud-modal: optional per-column "+" that pre-fills status = stage.id. */}
+      <header className={`flex items-center justify-between border-b-2 px-1 pb-3 ${style.bar}`}>
+        <div className="flex items-center gap-2.5">
+          <style.Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${style.icon}`} strokeWidth={2.25} />
+          <h3 id={headingId} className="font-heading text-base font-semibold uppercase tracking-wide text-content-primary">
+            {stage.label}
+            <span className="sr-only">, {count} {count === 1 ? 'task' : 'tasks'}</span>
+          </h3>
+          <span
+            aria-hidden="true"
+            className="ml-1 rounded-md border border-surface-border bg-surface-card px-2 py-0.5 font-mono text-xs font-medium text-content-primary"
+          >
+            {count}
+          </span>
+        </div>
+
+        {onAddTask && (
+          <button
+            type="button"
+            onClick={() => onAddTask(stage.id)}
+            aria-label={`Add task to ${stage.label}`}
+            className="rounded-lg p-1 text-content-muted hover:text-brand-primary hover:bg-surface-card transition-colors focus-visible:outline-2 focus-visible:outline-brand-primary"
+          >
+            <Plus aria-hidden="true" className="h-4 w-4" />
+          </button>
+        )}
       </header>
 
       <div className="mt-3 flex flex-1 flex-col rounded-2xl border border-surface-border/60 bg-surface-card/40 p-2.5">
@@ -58,7 +72,7 @@ export default function Column({ stage, tasks }) {
         ) : (
           <ul role="list" className="flex flex-col gap-2.5">
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard key={task.id} task={task} onEdit={onEditTask} />
             ))}
           </ul>
         )}
