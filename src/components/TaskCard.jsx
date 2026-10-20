@@ -12,21 +12,34 @@ function formatDate(iso) {
   return fmt.format(date);
 }
 
-const TYPE_ICON = { feature: Sparkles, bug: Bug };
+const TYPE_CONFIG = {
+  feature: {
+    Icon: Sparkles,
+    badgeClass: 'border-type-feature/30 bg-type-feature/10 text-type-feature',
+    iconClass: 'text-type-feature',
+  },
+  bug: {
+    Icon: Bug,
+    badgeClass: 'border-type-bug/30 bg-type-bug/10 text-type-bug',
+    iconClass: 'text-type-bug',
+  },
+};
 
 /**
- * Type badge. Icon + text label, so the type is never conveyed by colour
- * alone (WCAG 1.4.1).
- *
- * TODO M6 tag-style: swap the neutral classes below for the DESIGN.md
- * `type-feature` (#34D399) / `type-bug` (#FB7185) tints.
+ * Type badge (M6 `tag-style`).
+ * Uses DESIGN.md §2 `type-feature` (#34D399) & `type-bug` (#FB7185).
+ * Distinct icon + text label ensures WCAG 1.4.1 (not color alone).
  */
 function TypeBadge({ type }) {
-  const Icon = TYPE_ICON[type] ?? Sparkles;
+  const config = TYPE_CONFIG[type] ?? TYPE_CONFIG.feature;
+  const Icon = config.Icon;
+
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border border-surface-border bg-surface-page/60 px-2 py-0.5 font-mono text-xs font-medium text-content-primary">
-      <Icon aria-hidden="true" className="h-3.5 w-3.5 text-content-muted" strokeWidth={2} />
-      {getTypeLabel(type)}
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-xs font-medium ${config.badgeClass}`}
+    >
+      <Icon aria-hidden="true" className={`h-3.5 w-3.5 ${config.iconClass}`} strokeWidth={2} />
+      <span>{getTypeLabel(type)}</span>
     </span>
   );
 }

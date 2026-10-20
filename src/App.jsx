@@ -13,7 +13,7 @@ import { SEED_TASKS, STORAGE_KEYS, createTask, normalizeTask, normalizeTasks } f
  * Where to start (build sequence in Phase 3):
  *   - M4  data-model    : render the four columns and the task cards.
  *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal (DONE).
- *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors).
+ *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors) (DONE).
  *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown.
  *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors).
  *   - M9  context       : a curated Context briefing field on the modal.
